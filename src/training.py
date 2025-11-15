@@ -9,20 +9,23 @@ import matplotlib.pyplot as plt
 image_size = (224, 224)  # Resize images to 224x224 for the model
 batch_size = 32
 
-# Define transformations for training data (with augmentation)
+# Define transformations for training data (with increased augmentation)
 train_transform = transforms.Compose([
-    transforms.Resize(image_size),         # Resize the image to 224x224
-    transforms.RandomRotation(40),         # Random rotation
-    transforms.RandomHorizontalFlip(),     # Random horizontal flip
-    transforms.ToTensor(),                 # Convert image to tensor
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize using ImageNet statistics
+    transforms.Resize(image_size),  
+    transforms.RandomRotation(40),  # Random rotation
+    transforms.RandomHorizontalFlip(),  # Horizontal flip
+    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2),  # Color jitter
+    transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),  # Random translation
+    transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),  # Random crop
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize using ImageNet stats
 ])
 
 # Define transformations for validation data (no augmentation, just resizing and normalization)
 val_transform = transforms.Compose([
-    transforms.Resize(image_size),         # Resize the image to 224x224
-    transforms.ToTensor(),                 # Convert image to tensor
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize using ImageNet statistics
+    transforms.Resize(image_size),  
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
 # Paths to the training and validation data directories
@@ -60,14 +63,22 @@ def load_data():
 
     return train_loader, val_loader, train_dataset.classes
 
-# ---- Define the model (ResNet18) ----
+# ---- Define the model (ResNet18) with unfreezing of layers ----
 def build_model(num_classes):
     # Load a pretrained ResNet18 model
     model = models.resnet18(pretrained=True)
 
-    # Freeze the layers of the pre-trained model
+    # Unfreeze the last two blocks (layer4 and fc)
     for param in model.parameters():
-        param.requires_grad = False
+        param.requires_grad = False  # Freeze all layers initially
+
+    # Unfreeze the last two blocks (layer4)
+    for param in model.layer4.parameters():
+        param.requires_grad = True
+
+    # Unfreeze the fully connected layer
+    for param in model.fc.parameters():
+        param.requires_grad = True
 
     # Modify the final fully connected layer to match the number of classes in your dataset
     model.fc = nn.Linear(model.fc.in_features, num_classes)
@@ -81,11 +92,20 @@ def build_model(num_classes):
 # ---- Define the Loss Function and Optimizer ----
 def define_optimizer(model):
     criterion = nn.CrossEntropyLoss()  # Use CrossEntropyLoss for multi-class classification
-    optimizer = optim.Adam(model.parameters(), lr=0.001)  # Adam optimizer
+    optimizer = optim.Adam([
+        {'params': model.layer4.parameters(), 'lr': 0.0001},  # Lower learning rate for frozen layers
+        {'params': model.fc.parameters(), 'lr': 0.001}  # Higher learning rate for final fully connected layer
+    ], lr=0.0001)  # Base learning rate for frozen layers
     return criterion, optimizer
 
+# ---- Add a Learning Rate Scheduler ----
+def define_scheduler(optimizer):
+    # Use StepLR to decrease the learning rate every 5 epochs
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
+    return scheduler
+
 # ---- Training the model ----
-def train_model(num_epochs, train_loader, val_loader, model, criterion, optimizer, device):
+def train_model(num_epochs, train_loader, val_loader, model, criterion, optimizer, scheduler, device):
     train_loss = []
     val_loss = []
     train_accuracy = []
@@ -156,6 +176,9 @@ def train_model(num_epochs, train_loader, val_loader, model, criterion, optimize
               f'Train Loss: {epoch_train_loss:.4f}, Train Accuracy: {epoch_train_accuracy:.4f}, '
               f'Val Loss: {epoch_val_loss:.4f}, Val Accuracy: {epoch_val_accuracy:.4f}')
 
+        # Update the learning rate using the scheduler
+        scheduler.step()
+
     # Return the metrics for later visualization
     return train_loss, val_loss, train_accuracy, val_accuracy
 
@@ -186,17 +209,19 @@ if __name__ == "__main__":
     # Build the model
     model, device = build_model(num_classes)
 
-    # Define the loss function and optimizer
+    # Define the loss function, optimizer, and learning rate scheduler
     criterion, optimizer = define_optimizer(model)
+    scheduler = define_scheduler(optimizer)
 
     # Train the model
-    num_epochs = 10
+    num_epochs = 10  # Train for more epochs to improve performance
     train_loss, val_loss, train_accuracy, val_accuracy = train_model(
-        num_epochs, train_loader, val_loader, model, criterion, optimizer, device
+        num_epochs, train_loader, val_loader, model, criterion, optimizer, scheduler, device
     )
 
     # Plot the results
     plot_metrics(train_loss, val_loss, train_accuracy, val_accuracy, num_epochs)
 
-    # Save the trained model
-    torch.save(model.state_dict(), 'trash_sorting_finetuned_model.pth')
+    # Save the fine-tuned model
+    torch.save(model.state_dict(), 'fine_tuned_trash_sorting_model.pth')
+
