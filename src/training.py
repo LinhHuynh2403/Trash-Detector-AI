@@ -123,18 +123,21 @@ def save_metrics_json(train_loss, val_loss, train_accuracy, val_accuracy, num_ep
     print(f"Training metrics saved to {filepath}")
 
 # Function to save metrics as CSV 
-def save_metrics_csv(train_loss, val_loss, train_accuracy, val_accuracy, lr, filepath): # Path argument added
+def save_metrics_csv(train_loss, val_loss, train_accuracy, val_accuracy, lr, filepath): 
     
+    # 1. Prepare the header (Corrected order)
     header = ['Epoch', 'Learning_Rate', 'Train_Loss', 'Val_Loss', 'Train_Accuracy', 'Val_Accuracy']
     data = []
+    
+    # 2. Prepare the data rows (Corrected order to match header)
     for i in range(len(train_loss)):
         data.append([
             i + 1,
+            lr, 
             train_loss[i],
             val_loss[i],
             train_accuracy[i],
-            val_accuracy[i],
-            lr
+            val_accuracy[i]
         ])
 
     with open(filepath, 'w', newline='') as f:
