@@ -1,90 +1,58 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision import datasets, transforms, models
+from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
-import matplotlib.pyplot as plt
+import json
+import argparse
+import csv 
+import os 
+from utils import build_model, image_size, val_transform
 
 # Define the image size for resizing and batch size
-image_size = (224, 224)  # Resize images to 224x224 for the model
 batch_size = 32
 
 # Define transformations for training data (with augmentation)
 train_transform = transforms.Compose([
-    transforms.Resize(image_size),         # Resize the image to 224x224
-    transforms.RandomRotation(40),         # Random rotation
-    transforms.RandomHorizontalFlip(),     # Random horizontal flip
-    transforms.ToTensor(),                 # Convert image to tensor
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize using ImageNet statistics
-])
-
-# Define transformations for validation data (no augmentation, just resizing and normalization)
-val_transform = transforms.Compose([
-    transforms.Resize(image_size),         # Resize the image to 224x224
-    transforms.ToTensor(),                 # Convert image to tensor
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize using ImageNet statistics
+    transforms.Resize(image_size),
+    transforms.RandomRotation(40),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
 # Paths to the training and validation data directories
 train_dir = 'data/Garbage classification/training'
 val_dir = 'data/Garbage classification/validation'
 
-# Define the function to load datasets
+# Define the function to load datasets (remains the same)
 def load_data():
-    # Load the training dataset using ImageFolder (with transforms)
-    train_dataset = datasets.ImageFolder(
-        root=train_dir,
-        transform=train_transform  # Apply transformations for training
-    )
+    train_dataset = datasets.ImageFolder(root=train_dir, transform=train_transform)
+    val_dataset = datasets.ImageFolder(root=val_dir, transform=val_transform)
 
-    # Load the validation dataset using ImageFolder (with transforms)
-    val_dataset = datasets.ImageFolder(
-        root=val_dir,
-        transform=val_transform  # Apply transformations for validation
-    )
-
-    # Create DataLoader for training and validation sets (with num_workers=0 to avoid multiprocessing error)
     train_loader = DataLoader(
         train_dataset,
-        batch_size=batch_size,        # Number of images per batch
-        shuffle=True,                 # Shuffle the data to avoid bias
-        num_workers=0                 # Disable multiprocessing (set to 0 for Windows compatibility)
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=0
     )
 
     val_loader = DataLoader(
         val_dataset,
-        batch_size=batch_size,        # Number of images per batch
-        shuffle=False,                # No need to shuffle validation data
-        num_workers=0                 # Disable multiprocessing (set to 0 for Windows compatibility)
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=0
     )
 
     return train_loader, val_loader, train_dataset.classes
 
-# ---- Define the model (ResNet18) ----
-def build_model(num_classes):
-    # Load a pretrained ResNet18 model
-    model = models.resnet18(pretrained=True)
-
-    # Freeze the layers of the pre-trained model
-    for param in model.parameters():
-        param.requires_grad = False
-
-    # Modify the final fully connected layer to match the number of classes in your dataset
-    model.fc = nn.Linear(model.fc.in_features, num_classes)
-
-    # Move the model to GPU if available
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-    
-    return model, device
-
 # ---- Define the Loss Function and Optimizer ----
-def define_optimizer(model):
-    criterion = nn.CrossEntropyLoss()  # Use CrossEntropyLoss for multi-class classification
-    optimizer = optim.Adam(model.parameters(), lr=0.001)  # Adam optimizer
+def define_optimizer(model, lr):
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr) 
     return criterion, optimizer
 
-# ---- Training the model ----
+# ---- Training the model (logic remains the same) ----
 def train_model(num_epochs, train_loader, val_loader, model, criterion, optimizer, device):
     train_loss = []
     val_loss = []
@@ -92,28 +60,17 @@ def train_model(num_epochs, train_loader, val_loader, model, criterion, optimize
     val_accuracy = []
 
     for epoch in range(num_epochs):
-        model.train()  # Set the model to training mode
+        model.train()
         running_loss = 0.0
         correct_train = 0
         total_train = 0
-
-        # Training loop
         for inputs, labels in train_loader:
             inputs, labels = inputs.to(device), labels.to(device)
-            
-            optimizer.zero_grad()  # Zero the parameter gradients
-            
-            # Forward pass
+            optimizer.zero_grad()
             outputs = model(inputs)
-            
-            # Compute loss
             loss = criterion(outputs, labels)
-            
-            # Backward pass and optimization
             loss.backward()
             optimizer.step()
-            
-            # Calculate the training loss and accuracy
             running_loss += loss.item()
             _, predicted = torch.max(outputs, 1)
             total_train += labels.size(0)
@@ -124,24 +81,18 @@ def train_model(num_epochs, train_loader, val_loader, model, criterion, optimize
         train_loss.append(epoch_train_loss)
         train_accuracy.append(epoch_train_accuracy)
 
-        # Validation loop
-        model.eval()  # Set the model to evaluation mode
+        model.eval()
         correct_val = 0
         total_val = 0
         running_val_loss = 0.0
 
-        with torch.no_grad():  # No gradients needed for validation
+        with torch.no_grad():
             for inputs, labels in val_loader:
                 inputs, labels = inputs.to(device), labels.to(device)
-                
-                # Forward pass
                 outputs = model(inputs)
-                
-                # Compute validation loss
                 loss = criterion(outputs, labels)
                 running_val_loss += loss.item()
                 
-                # Calculate accuracy
                 _, predicted = torch.max(outputs, 1)
                 total_val += labels.size(0)
                 correct_val += (predicted == labels).sum().item()
@@ -151,52 +102,96 @@ def train_model(num_epochs, train_loader, val_loader, model, criterion, optimize
         val_loss.append(epoch_val_loss)
         val_accuracy.append(epoch_val_accuracy)
 
-        # Print statistics for each epoch
         print(f'Epoch [{epoch+1}/{num_epochs}], '
-              f'Train Loss: {epoch_train_loss:.4f}, Train Accuracy: {epoch_train_accuracy:.4f}, '
-              f'Val Loss: {epoch_val_loss:.4f}, Val Accuracy: {epoch_val_accuracy:.4f}')
+            f'Train Loss: {epoch_train_loss:.4f}, Train Accuracy: {epoch_train_accuracy:.4f}, '
+            f'Val Loss: {epoch_val_loss:.4f}, Val Accuracy: {epoch_val_accuracy:.4f}')
 
-    # Return the metrics for later visualization
     return train_loss, val_loss, train_accuracy, val_accuracy
 
-# ---- Plot the training and validation loss/accuracy ----
-def plot_metrics(train_loss, val_loss, train_accuracy, val_accuracy, num_epochs):
-    # Plot training and validation loss
-    plt.plot(range(num_epochs), train_loss, label='Training Loss')
-    plt.plot(range(num_epochs), val_loss, label='Validation Loss')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.show()
+# Function to save metrics as JSON 
+def save_metrics_json(train_loss, val_loss, train_accuracy, val_accuracy, num_epochs, filepath): # Path argument added
+    metrics = {
+        'num_epochs': num_epochs,
+        'train_loss': train_loss,
+        'val_loss': val_loss,
+        'train_accuracy': train_accuracy,
+        'val_accuracy': val_accuracy
+    }
+    with open(filepath, 'w') as f:
+        json.dump(metrics, f)
+    print(f"Training metrics saved to {filepath}")
 
-    # Plot training and validation accuracy
-    plt.plot(range(num_epochs), train_accuracy, label='Training Accuracy')
-    plt.plot(range(num_epochs), val_accuracy, label='Validation Accuracy')
-    plt.xlabel('Epochs')
-    plt.ylabel('Accuracy')
-    plt.legend()
-    plt.show()
+# Function to save metrics as CSV 
+def save_metrics_csv(train_loss, val_loss, train_accuracy, val_accuracy, filepath): # Path argument added
+    
+    header = ['Epoch', 'Train_Loss', 'Val_Loss', 'Train_Accuracy', 'Val_Accuracy']
+    data = []
+    for i in range(len(train_loss)):
+        data.append([
+            i + 1,
+            train_loss[i],
+            val_loss[i],
+            train_accuracy[i],
+            val_accuracy[i]
+        ])
 
-# ---- Main function ----
+    with open(filepath, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+        writer.writerows(data)
+        
+    print(f"Training metrics saved to {filepath}")
+
+# Function to save class names 
+def save_class_names(classes, filepath): # Path argument added
+    with open(filepath, 'w') as f:
+        json.dump(classes, f)
+    print(f"Class names saved to {filepath}")
+
+# ---- Main function (Modified) ----
 if __name__ == "__main__":
+    
+    # Define the results folder name
+    RESULTS_FOLDER = 'results'  
+    
+    parser = argparse.ArgumentParser(description='Train a garbage classification model.')
+    parser.add_argument('--epochs', type=int, default=10, help='Number of training epochs. (Default: 10)')
+    parser.add_argument('--lr', type=float, default=0.001, help='Learning rate for the optimizer. (Default: 0.001)')
+    args = parser.parse_args()
+
     # Load the data
     train_loader, val_loader, classes = load_data()
-    num_classes = len(classes)  # Number of categories (e.g., glass, plastic, etc.)
+    num_classes = len(classes)
 
     # Build the model
     model, device = build_model(num_classes)
 
     # Define the loss function and optimizer
-    criterion, optimizer = define_optimizer(model)
-
+    criterion, optimizer = define_optimizer(model, args.lr)
+    
     # Train the model
-    num_epochs = 10
     train_loss, val_loss, train_accuracy, val_accuracy = train_model(
-        num_epochs, train_loader, val_loader, model, criterion, optimizer, device
+        args.epochs, train_loader, val_loader, model, criterion, optimizer, device
     )
 
-    # Plot the results
-    plot_metrics(train_loss, val_loss, train_accuracy, val_accuracy, num_epochs)
+    # --- Save all files to the results folder ---
+    
+    # Define file paths using os.path.join for cross-platform compatibility
+    model_path = os.path.join(RESULTS_FOLDER, 'trash_sorting_finetuned_model.pth')
+    class_names_path = os.path.join(RESULTS_FOLDER, 'class_names.json')
+    metrics_json_path = os.path.join(RESULTS_FOLDER, 'training_metrics.json')
+    metrics_csv_path = os.path.join(RESULTS_FOLDER, 'training_metrics.csv')
+
+
+    # Save the metrics to JSON 
+    save_metrics_json(train_loss, val_loss, train_accuracy, val_accuracy, args.epochs, metrics_json_path)
+    
+    # Save the metrics to CSV 
+    save_metrics_csv(train_loss, val_loss, train_accuracy, val_accuracy, metrics_csv_path)
 
     # Save the trained model
-    torch.save(model.state_dict(), 'trash_sorting_finetuned_model.pth')
+    torch.save(model.state_dict(), model_path)
+    print(f"Model saved to {model_path}")
+    
+    # Save the class names
+    save_class_names(classes, class_names_path)
