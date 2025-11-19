@@ -37,16 +37,48 @@ Instead of building a model from scratch, it uses **transfer learning** with pre
    - Classifies image as *Recyclable* or *Non-Recyclable*  
 
 ---
+## Important Folders
+1. **Results**
+   - Includes all the results in json and csv file
+   
+2. **src**
+   - training.py: handles data loading, model instanation (ResNet18), the training loop, printing epoch results, and saving all final assets (.csv, .pth, .json). Accepts --epochs and --lr arguments
+   - utils.py: contains reusable components like the image pre-processing pipelines (val_transform), the function to build the ResNet18 model architecture (build_model), and the function to load the saved model checkpoint for inference (load_checkpoint_model)
+   - test.py: loads the trained model from the results/folder and performs predictions on a list of individual images (defined by TEST_IMAGE_PATHS)
+   - plot_metrics.py: loads the training metrics from results/training_metric.json and generates a plot visualizing the Training/Validation Loss and Accuracy over all epochs
+
+3. **Results**
+   - trash_sorting_finetuned_model.pth: Model Checkpoints. Contains the learned weights of the fine-tuned ResNet18 model
+   - training_metric.csv: Metrics Log. A human-readable file logging the Loss, Accuracy, Epochs, Learning Rate for every epoch of the training run
+   - training_metric.json: Plotting data. A JSON file containing the loss and accuracy lists, used as input for the plot_metrics.py
+   - class_name.py: Class Mapping. A list of class name used to map the model's numerical output index (0, 1, 2,...) back to the human-readable garbage category. 
 
 ## 💻 How to Run
+1. **Clone the Repo**
 ```bash
-# 1. Clone the repository
 git clone https://github.com/LinhHuynh2403/Waste-Detector-AI.git
 cd trash-sorting-ai
+```
+2. **Create a new virtual environment**
+for Mac/Linux
+```bash
+python -m venv vevn
+source venv/bin/activate   
+``` 
 
-# 2. Install dependencies
+for Windows (PowerShell)
+```bash
+python -m venv venv
+venv\Scripts\Activate
+```
+
+3. **Install dependencies**
+```bash
 pip install -r requirements.txt
+```
 
-# 3. Run the training or test script
-python train.py     # for training
-python predict.py   # for testing new images
+4. **Run the training or test script**
+```bash
+python src/train.py     # for training
+python src/predict.py   # for testing new images
+```
