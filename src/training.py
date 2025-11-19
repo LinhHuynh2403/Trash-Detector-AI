@@ -109,7 +109,7 @@ def train_model(num_epochs, train_loader, val_loader, model, criterion, optimize
     return train_loss, val_loss, train_accuracy, val_accuracy
 
 # Function to save metrics as JSON 
-def save_metrics_json(train_loss, val_loss, train_accuracy, val_accuracy, num_epochs, lr, filepath): # Path argument added
+def save_metrics_json(train_loss, val_loss, train_accuracy, val_accuracy, num_epochs, lr, filepath):
     metrics = {
         'num_epochs': num_epochs,
         'train_loss': train_loss,
@@ -125,11 +125,11 @@ def save_metrics_json(train_loss, val_loss, train_accuracy, val_accuracy, num_ep
 # Function to save metrics as CSV 
 def save_metrics_csv(train_loss, val_loss, train_accuracy, val_accuracy, lr, filepath): 
     
-    # 1. Prepare the header (Corrected order)
+    # 1. Prepare the header
     header = ['Epoch', 'Learning_Rate', 'Train_Loss', 'Val_Loss', 'Train_Accuracy', 'Val_Accuracy']
     data = []
     
-    # 2. Prepare the data rows (Corrected order to match header)
+    # 2. Prepare the data rows
     for i in range(len(train_loss)):
         data.append([
             i + 1,
@@ -148,7 +148,7 @@ def save_metrics_csv(train_loss, val_loss, train_accuracy, val_accuracy, lr, fil
     print(f"Training metrics saved to {filepath}")
 
 # Function to save class names 
-def save_class_names(classes, filepath): # Path argument added
+def save_class_names(classes, filepath):
     with open(filepath, 'w') as f:
         json.dump(classes, f)
     print(f"Class names saved to {filepath}")
@@ -160,10 +160,13 @@ if __name__ == "__main__":
     RESULTS_FOLDER = 'results'  
     
     parser = argparse.ArgumentParser(description='Train a garbage classification model.')
-    parser.add_argument('--epochs', type=int, nargs='+', default=[10], help='Number of training epochs. (Default: 10)')
-    parser.add_argument('--lr', type=float, nargs='+', default=[0.001], help='Learning rate for the optimizer. (Default: 0.001)')
+    parser.add_argument('--epochs', type=int, nargs='+', default=[10], help='List of epoch counts to test. (Default: 10)')
+    parser.add_argument('--lr', type=float, nargs='+', default=[0.001], help='List of learning rates to test. (Default: 0.001)')
     args = parser.parse_args()
 
+    # Create results folder
+    os.makedirs(RESULTS_FOLDER, exist_ok=True)
+    
     # Load the data once
     train_loader, val_loader, classes = load_data()
     num_classes = len(classes)
@@ -203,7 +206,8 @@ if __name__ == "__main__":
             )
 
             # 4. Save results
-            save_metrics_json(train_loss, val_loss, train_accuracy, val_accuracy, num_epochs, metrics_json_path)
+            # FIX APPLIED: Pass 'lr' argument
+            save_metrics_json(train_loss, val_loss, train_accuracy, val_accuracy, num_epochs, lr, metrics_json_path)
             save_metrics_csv(train_loss, val_loss, train_accuracy, val_accuracy, lr, metrics_csv_path)
             torch.save(model.state_dict(), model_path)
             print(f"Model saved to {model_path}")
