@@ -86,7 +86,7 @@ pip install -r requirements.txt
 4. **Run the training or test script**
 ```bash
 python src/train.py     # for training
-python src/predict.py   # for testing new images
+python src/test.py   # for testing new images
 ```
 5. **Run the plot**
 ```bash
