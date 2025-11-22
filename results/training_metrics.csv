@@ -1,4 +1,3 @@
-Epoch,Learning_Rate,Train_Loss,Val_Loss,Train_Accuracy,Val_Accuracy
-10,0.0001,1.0584,1.0740,66.87,69.14
-20,0.0001,0.8294,0.8659,73.28,74.07
-30,0.0001,0.7340,0.7790,76.04,75.51
+Run_ID,Epoch,Learning_Rate,Train_Loss,Val_Loss,Train_Accuracy,Val_Accuracy
+1,40,0.0005,0.5124,0.6084,81.56,82.10
+2,40,1e-05,1.3303,1.3740,54.33,54.32
