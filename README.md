@@ -3,7 +3,7 @@ UC Davis Computer Vision project that uses a pretrained CNN to classify waste (p
 
 ## 🧠 Project Overview
 This project aims to demonstrate how **AI can support environmental sustainability** by automatically classifying waste items (plastic, glass, paper, cardboard, metal, etc.).  
-Instead of building a model from scratch, it uses **transfer learning** with pretrained models like **ResNet18** or **MobileNetV2** for efficient and accurate classification.
+Instead of building a model from scratch, it uses **transfer learning** with pretrained models like **ResNet18** for efficient and accurate classification.
 
 ---
 
@@ -30,23 +30,54 @@ Instead of building a model from scratch, it uses **transfer learning** with pre
    - Train using categorical cross-entropy loss  
 
 3. **Evaluation**
-   - Accuracy and confusion matrix  
-   - Grad-CAM visualization for interpretability  
+   - Accuracy and confusion matrix   
 
 4. **Output**
    - Classifies image as *Recyclable* or *Non-Recyclable*  
 
 ---
+## Important Folders
+
+### 1. `results/` (Output Data)
+
+| File | Purpose |
+| :--- | :--- |
+| `trash_sorting_finetuned_model.pth` | **Model Checkpoint.** Contains the learned weights of the fine-tuned ResNet18 model. |
+
+### 2. `src/` (Source Code)
+
+| Script | Purpose |
+| :--- | :--- |
+| `training-and-testing.py` | **Main Training Script and Testing Script.** Handles data loading, model instantiation (ResNet18), the training loop, printing epoch results, and printing all final assets. Also, Loads the trained model onto a test set to get test accuracy.|
+
 
 ## 💻 How to Run
+1. **Clone the Repo**
 ```bash
-# 1. Clone the repository
 git clone https://github.com/LinhHuynh2403/Waste-Detector-AI.git
 cd trash-sorting-ai
+```
+2. **Create a new virtual environment**
 
-# 2. Install dependencies
+for Mac/Linux
+```bash
+python -m venv venv
+source venv/bin/activate   
+``` 
+
+for Windows (PowerShell)
+```bash
+python -m venv venv
+venv\Scripts\Activate
+```
+
+3. **Install dependencies**
+```bash
 pip install -r requirements.txt
+```
 
-# 3. Run the training or test script
-python train.py     # for training
-python predict.py   # for testing new images
+4. **Run the training**
+```bash
+python src/training-and-testing.py
+# Training Results, Test Results, and Plots should show up (Will also be included in the report)   
+```
